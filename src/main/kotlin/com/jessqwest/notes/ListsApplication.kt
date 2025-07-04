@@ -7,16 +7,16 @@ import org.springframework.context.ApplicationListener
 import org.springframework.stereotype.Component
 
 @SpringBootApplication
-class NotesApplication
+class ListsApplication
 
 fun main(args: Array<String>) {
-    runApplication<NotesApplication>(*args)
+    runApplication<ListsApplication>(*args)
 }
 
 @Component
 class StartupUrlPrinter : ApplicationListener<ApplicationReadyEvent> {
     override fun onApplicationEvent(event: ApplicationReadyEvent) {
         val port = event.applicationContext.environment.getProperty("local.server.port") ?: "8080"
-        println("API is running at: http://localhost:$port/notes")
+        println("API is running at: http://localhost:$port/lists")
     }
 }
