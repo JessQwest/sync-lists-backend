@@ -3,14 +3,14 @@ package com.jessqwest.notes.logging
 import org.aspectj.lang.annotation.Aspect
 import org.aspectj.lang.annotation.Before
 import org.aspectj.lang.JoinPoint
-import org.springframework.boot.CommandLineRunner
-import org.springframework.context.ApplicationContext
-import org.springframework.context.annotation.Bean
 import org.springframework.stereotype.Component
+import java.util.logging.Logger
 
 @Aspect
 @Component
 class ApiLoggingAspect {
+
+    private val logger: Logger = Logger.getLogger(ApiLoggingAspect::class.java.name)
 
     @Before("@annotation(org.springframework.web.bind.annotation.RequestMapping) || " +
             "@annotation(org.springframework.web.bind.annotation.GetMapping) || " +
@@ -20,17 +20,6 @@ class ApiLoggingAspect {
     fun logApiCall(joinPoint: JoinPoint) {
         val methodName = joinPoint.signature.name
         val args = joinPoint.args.joinToString(", ") { it.toString() }
-        println("API called: $methodName with arguments: $args")
-    }
-}
-
-@Bean
-fun commandLineRunner(ctx: ApplicationContext): CommandLineRunner {
-    return CommandLineRunner {
-        println("Beans provided by Spring Boot:")
-        ctx.beanDefinitionNames
-                .filter { it.contains("controller", ignoreCase = true) }
-                .sorted()
-                .forEach { println(it) }
+        logger.info("API called: $methodName with arguments: $args")
     }
 }
