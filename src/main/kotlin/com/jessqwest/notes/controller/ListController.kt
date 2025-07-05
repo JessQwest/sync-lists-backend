@@ -14,7 +14,7 @@ import java.util.*
 
 @RestController
 @RequestMapping("/lists")
-@CrossOrigin(origins = ["*"]) // <-- Allow all origins
+@CrossOrigin(origins = ["*"])
 class ListController(
         private val listRepo: ListRepository,
         private val todoRepo: TodoItemRepository,
