@@ -35,7 +35,7 @@ class ListController(
     @PostMapping
     fun createList(@RequestBody request: CreateListRequest): ListResponse {
         val id = UUID.randomUUID().toString()
-        val entity = ListEntity(id, request.name, request.type)
+        val entity = ListEntity(id, null, request.name.trim(), request.type)
         listRepo.save(entity)
         return buildListResponse(entity)
     }
@@ -56,7 +56,7 @@ class ListController(
                 val entity = TodoItemEntity(
                         id = UUID.randomUUID().toString(),
                         listId = id,
-                        name = item["name"] as String,
+                        name = (item["name"] as String).trim(),
                         checked = item["checked"] as Boolean
                 )
                 todoRepo.save(entity)
@@ -66,8 +66,8 @@ class ListController(
                 val entity = StockItemEntity(
                         id = UUID.randomUUID().toString(),
                         listId = id,
-                        name = item["name"] as String,
-                        count = (item["count"] as Number).toInt(),
+                        name = (item["name"] as String).trim(),
+                        count = (item["count"] as Number).toFloat(),
                         flagged = item["flagged"] as? Boolean
                 )
                 stockRepo.save(entity)
@@ -89,7 +89,7 @@ class ListController(
             "todo" -> {
                 val existing = todoRepo.findById(itemId).orElseThrow()
                 val updated = existing.copy(
-                        name = item["name"] as String,
+                        name = (item["name"] as String).trim(),
                         checked = item["checked"] as Boolean
                 )
                 todoRepo.save(updated)
@@ -98,8 +98,8 @@ class ListController(
             "stock" -> {
                 val existing = stockRepo.findById(itemId).orElseThrow()
                 val updated = existing.copy(
-                        name = item["name"] as String,
-                        count = (item["count"] as Number).toInt(),
+                        name = (item["name"] as String).trim(),
+                        count = (item["count"] as Number).toFloat(),
                         flagged = item["flagged"] as? Boolean
                 )
                 stockRepo.save(updated)
@@ -120,26 +120,72 @@ class ListController(
 
     private fun buildListResponse(list: ListEntity): ListResponse {
         val items = when (list.type) {
-            "todo" -> todoRepo.findByListId(list.id).map {
-                mapOf(
-                        "id" to it.id,
-                        "name" to it.name,
-                        "checked" to it.checked
-                )
-            }
+            "todo" -> todoRepo.findByListId(list.id)
+                    .sortedWith(compareBy(
+                            { it.itemorder ?: Int.MAX_VALUE },
+                            { it.name }
+                    ))
+                    .map {
+                        mapOf(
+                                "id" to it.id,
+                                "name" to it.name,
+                                "checked" to it.checked
+                        )
+                    }
 
-            "stock" -> stockRepo.findByListId(list.id).map {
-                mapOf(
-                        "id" to it.id,
-                        "name" to it.name,
-                        "count" to it.count,
-                        "flagged" to it.flagged
-                )
-            }
+            "stock" -> stockRepo.findByListId(list.id)
+                    .sortedWith(compareBy(
+                            { it.itemorder ?: Int.MAX_VALUE },
+                            { it.name }
+                    ))
+                    .map {
+                        mapOf(
+                                "id" to it.id,
+                                "name" to it.name,
+                                "count" to it.count,
+                                "flagged" to it.flagged
+                        )
+                    }
 
             else -> emptyList()
         }
 
         return ListResponse(list.id, list.name, list.type, items)
+    }
+
+    @PostMapping("/{id}/reorder")
+    fun reorderItems(
+            @PathVariable id: String,
+            @RequestBody itemOrder: List<String>
+    ) {
+        val list = listRepo.findById(id).orElseThrow { NoSuchElementException("List not found") }
+
+        when (list.type) {
+            "todo" -> {
+                val items = todoRepo.findByListId(id)
+                val updatedItems = items.map { item ->
+                    if (item.id in itemOrder) {
+                        item.copy(itemorder = itemOrder.indexOf(item.id))
+                    } else {
+                        item.copy(itemorder = null)
+                    }
+                }
+                todoRepo.saveAll(updatedItems)
+            }
+
+            "stock" -> {
+                val items = stockRepo.findByListId(id)
+                val updatedItems = items.map { item ->
+                    if (item.id in itemOrder) {
+                        item.copy(itemorder = itemOrder.indexOf(item.id))
+                    } else {
+                        item.copy(itemorder = null)
+                    }
+                }
+                stockRepo.saveAll(updatedItems)
+            }
+
+            else -> throw IllegalArgumentException("Invalid list type")
+        }
     }
 }
