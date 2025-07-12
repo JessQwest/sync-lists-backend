@@ -23,7 +23,14 @@ class ListController(
 
     @GetMapping
     fun getAllLists(): List<ListResponse> {
-        return listRepo.findAll().map { buildListResponse(it) }
+        return listRepo.findAll()
+                .sortedWith(
+                        compareBy(
+                                { it.itemorder ?: Int.MAX_VALUE },
+                                { it.name }
+                        )
+                )
+                .map { buildListResponse(it) }
     }
 
     @GetMapping("/{id}")
@@ -187,5 +194,18 @@ class ListController(
 
             else -> throw IllegalArgumentException("Invalid list type")
         }
+    }
+
+    @PostMapping("/reorder")
+    fun reorderLists(@RequestBody listOrder: List<String>) {
+        val lists = listRepo.findAll()
+        val updatedLists = lists.map { list ->
+            if (list.id in listOrder) {
+                list.copy(itemorder = listOrder.indexOf(list.id))
+            } else {
+                list.copy(itemorder = null)
+            }
+        }
+        listRepo.saveAll(updatedLists)
     }
 }
