@@ -58,13 +58,20 @@ class ListController(
     fun addItem(@PathVariable id: String, @RequestBody item: Map<String, Any>) {
         val list = listRepo.findById(id).orElseThrow { NoSuchElementException("List not found") }
 
+        val maxItemOrder = when (list.type) {
+            "todo" -> todoRepo.findByListId(id).maxOfOrNull { it.itemorder ?: 0 } ?: 0
+            "stock" -> stockRepo.findByListId(id).maxOfOrNull { it.itemorder ?: 0 } ?: 0
+            else -> throw IllegalArgumentException("Invalid list type")
+        }
+
         when (list.type) {
             "todo" -> {
                 val entity = TodoItemEntity(
                         id = UUID.randomUUID().toString(),
                         listId = id,
                         name = (item["name"] as String).trim(),
-                        checked = item["checked"] as Boolean
+                        checked = item["checked"] as Boolean,
+                        itemorder = maxItemOrder + 1
                 )
                 todoRepo.save(entity)
             }
@@ -75,7 +82,8 @@ class ListController(
                         listId = id,
                         name = (item["name"] as String).trim(),
                         count = (item["count"] as Number).toFloat(),
-                        flagged = item["flagged"] as? Boolean
+                        flagged = item["flagged"] as? Boolean,
+                        itemorder = maxItemOrder + 1
                 )
                 stockRepo.save(entity)
             }
